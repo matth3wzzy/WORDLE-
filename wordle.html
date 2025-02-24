@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Wordle Game</title>
+    <style>
+        body {
+            background-color: #9be6f9;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: Arial, sans-serif;
+            min-height: 100vh;
+            margin: 0;
+            padding: 0; /* Убираем отступы для полного расширения верхней панели */
+            position: relative;
+        }
+
+        /* Верхняя панель */
+        .header {
+            width: 100%; /* Растягиваем до границ экрана */
+            background-color: #B4FF99;
+            color: #84BA70;
+            text-align: center;
+            padding: 30px 0;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            position: relative;
+            border-bottom-left-radius: 25px;
+            border-bottom-right-radius: 25px;
+            z-index: 1001; /* Панель должна быть выше меню настроек */
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin: 0;
+            font-weight: bold;
+        }
+
+        /* Кнопка настроек на панели */
+        #settingsButton {
+            position: absolute;
+            top: 50%;
+            right: 20px;
+            transform: translateY(-50%);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #9faff5;
+            color: #405CE6;
+            border: 2px solid #405CE6;
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        #settingsButton:hover {
+            background-color: #405CE6;
+            color: white;
+        }
+
+        /* Модальное окно настроек */
+        .settings-modal {
+            position: fixed;
+            top: -500px; /* Начальная позиция за пределами экрана */
+            left: 75%; /* Центрируем по горизонтали */
+           
+            width: 200px; /* Уменьшили ширину */
+            background-color: #f9ae9b;
+            padding: 20px 30px;
+            border-radius: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            transition: top 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Анимация выезда */
+        }
+
+        .settings-modal.active {
+            top: 50px; /* Конечная позиция под верхней панелью */
+        }
+
+        .settings-modal h2 {
+            margin-bottom: 20px;
+            font-size: 20px;
+            color: #ff6f61;
+        }
+
+        .settings-modal button {
+            width: 100%;
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #9faff5;
+            color: white;
+            border: 2px solid #405CE6;
+            border-radius: 15px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        .settings-modal button:hover {
+            background-color: #405CE6;
+            color: white;
+        }
+
+        /* Игровая панель */
+        .panel {
+            background: #f9ae9b;
+            padding: 30px 40px;
+            border-radius: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            width: 350px;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        /* Кнопка "Проверить" */
+        .input-container button {
+            padding: 10px 20px;
+            background-color: #9faff5;
+            color: white;
+            border: 2px solid #405CE6;
+            cursor: pointer;
+            font-size: 15px;
+            border-radius: 15px;
+            transition: background-color 0.2s;
+        }
+        .input-container button:hover {
+            background-color: #74ca6c;
+        }
+
+        /* Кнопка "Новая игра" */
+        #newRound {
+    width: 100%; /* Занимает всю ширину */
+    margin-top: 20px;
+    background-color: #ff6f61;
+    color: white;
+    border: none;
+    padding: 10px;
+    font-size: 16px;
+    border-radius: 15px;
+    cursor: pointer;
+}
+
+#newRound:hover {
+    background-color: #e53935;
+}
+
+#currentKeyboardMode {
+    margin-top: 10px;
+    font-size: 14px;
+    font-weight: bold;
+    color: #f4795a;
+    text-align: center;
+}
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(5, 60px);
+            gap: 12px;
+            margin: 20px 0;
+        }
+
+        .cell {
+            width: 60px;
+            height: 60px;
+            border: 2px solid #f4795a;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            font-weight: bold;
+            background-color: #f9ae9b;
+            color: #f4795a;
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, opacity 0.3s ease;
+            opacity: 1;
+        }
+
+/* Модальное окно для выбора раскладки */
+.layout-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 250px;
+    background-color: #f9ae9b;
+    padding: 20px;
+    border-radius: 20px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    z-index: 1002; /* Окно должно быть выше других элементов */
+    display: none; /* Скрыто по умолчанию */
+}
+
+.layout-modal.active {
+    display: block; /* Показываем окно при активации */
+}
+
+.layout-modal h2 {
+    margin-bottom: 20px;
+    font-size: 20px;
+    color: #ff6f61;
+}
+
+.layout-modal button {
+    width: 100%;
+    margin: 10px 0;
+    padding: 10px;
+    background-color: #9faff5;
+    color: white;
+    border: 2px solid #405CE6;
+    border-radius: 15px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.layout-modal button:hover {
+    background-color: #405CE6;
+    color: white;
+}
+
+        /* Мотивационные сообщения */
+        #motivationMessage {
+            font-size: 18px;
+            font-weight: bold;
+            color: #f4795a;
+            margin-bottom: 20px;
+        }
+
+        input {
+            width: 200px;
+            padding: 10px;
+            font-size: 16px;
+            border: 2px solid #d3d6da;
+            border-radius: 15px;
+            text-transform: uppercase;
+        }
+
+        .input-container {
+            display: flex;
+            gap: 10px;
+        }
+
+
+        /* Стиль для виртуальной клавиатуры */
+#virtualKeyboard {
+    margin-top: 20px;
+}
+
+.keyboard-row {
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+    margin-bottom: 10px;
+}
+
+.keyboard-row button {
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+    border: 2px solid #74ca6c;
+    border-radius: 5px;
+    background-color: #9faff5;
+    color: white;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.keyboard-row button:hover {
+    background-color: #74ca6c;
+}
+
+
+
+    </style>
+</head>
+<body>
+    <!-- Верхняя панель -->
+    <div class="header">
+        <h1>MATTHEWZZY'S WORDLE</h1>
+        <!-- Кнопка настроек -->
+        <button id="settingsButton" onclick="openSettings()">⚙️</button>
+    </div>
+
+<!-- Модальное окно для выбора раскладки -->
+<div class="layout-modal" id="layoutModal">
+    <h2>CHOOSE KEYBOARD</h2>
+    <button onclick="selectLayout('manual')">HANDLE</button>
+    <button onclick="selectLayout('built-in')">BUILT-IN</button>
+    <button onclick="closeLayoutModal()">CLOSE</button>
+</div>
+
+    <!-- Модальное окно настроек -->
+    <div class="settings-modal" id="settingsModal">
+        <h2>SETTINGS</h2>
+        <button onclick="handleSetting('language')">LANGUAGE</button>
+        <button onclick="handleSetting('theme')">THEME</button>
+        <button onclick="toggleKeyboard()">KEYBOARD</button>
+        <button onclick="handleSetting('support')">SUPPORT</button>
+        <button onclick="closeSettings()">CONTINUE</button>
+    </div>
+
+    <!-- Игровая панель -->
+    <div class="panel">
+    <div id="motivationMessage"></div> <!-- Блок для мотивирующих сообщений -->
+    <div class="grid" id="grid"></div> <!-- Сетка букв -->
+    
+    <!-- Контейнер для ввода слова -->
+    <div class="input-container">
+        <input type="text" id="guessInput" maxlength="5">
+        <button onclick="checkGuess()">CHECK</button>
+    </div>
+
+    <!-- Кнопка "Новая игра" (одна единственная) -->
+    <button id="newRound" onclick="newRound()" style="width: 100%;">NEW GAME</button>
+
+    <!-- Кнопка "Раскладка" -->
+    
+
+    <!-- Текущий режим раскладки -->
+    <div id="currentKeyboardMode">HANDLE</div>
+</div>
+
+<!-- Виртуальная клавиатура -->
+<div id="virtualKeyboard" style="display: none; text-align: center;">
+    <div class="keyboard-row">
+        <button onclick="typeLetter('Q')">Q</button>
+        <button onclick="typeLetter('W')">W</button>
+        <button onclick="typeLetter('E')">E</button>
+        <button onclick="typeLetter('R')">R</button>
+        <button onclick="typeLetter('T')">T</button>
+        <button onclick="typeLetter('Y')">Y</button>
+        <button onclick="typeLetter('U')">U</button>
+        <button onclick="typeLetter('I')">I</button>
+        <button onclick="typeLetter('O')">O</button>
+        <button onclick="typeLetter('P')">P</button>
+    </div>
+    <div class="keyboard-row">
+        <button onclick="typeLetter('A')">A</button>
+        <button onclick="typeLetter('S')">S</button>
+        <button onclick="typeLetter('D')">D</button>
+        <button onclick="typeLetter('F')">F</button>
+        <button onclick="typeLetter('G')">G</button>
+        <button onclick="typeLetter('H')">H</button>
+        <button onclick="typeLetter('J')">J</button>
+        <button onclick="typeLetter('K')">K</button>
+        <button onclick="typeLetter('L')">L</button>
+    </div>
+    <div class="keyboard-row">
+        <button onclick="deleteLetter()">⌫</button>
+        <button onclick="typeLetter('Z')">Z</button>
+        <button onclick="typeLetter('X')">X</button>
+        <button onclick="typeLetter('C')">C</button>
+        <button onclick="typeLetter('V')">V</button>
+        <button onclick="typeLetter('B')">B</button>
+        <button onclick="typeLetter('N')">N</button>
+        <button onclick="typeLetter('M')">M</button>
+        <button onclick="checkGuess()">Enter</button>
+    </div>
+</div>
+
+
+    <script>
+        const words = [
+    "apple", "about", "actor", "admit", "agent", "angry", "alarm", "allow", "arena", "audit",
+    "brave", "brain", "break", "bring", "brick", "basic", "blame", "beach", "bonus", "breed",
+    "carry", "chair", "claim", "clean", "clock", "cover", "candy", "court", "crane", "cycle",
+    "daily", "dance", "dream", "drink", "drive", "digit", "doubt", "dress", "drone", "ducks",
+    "eagle", "earth", "entry", "empty", "error", "email", "event", "exist", "extra", "erase",
+    "fable", "faith", "frame", "fruit", "fight", "focus", "front", "force", "field", "flash",
+    "grape", "great", "green", "guard", "glass", "guide", "grant", "glove", "grove", "guest",
+    "habit", "hotel", "heart", "horse", "heavy", "human", "honey", "house", "happy", "hands",
+    "ideal", "issue", "image", "index", "inner", "input", "island", "inbox", "ivory", "irate",
+    "joker", "joint", "judge", "juice", "jelly", "jumbo", "japan", "jolly", "javel", "jewel",
+    "karma", "knife", "keeps", "known", "kilos", "koala", "knack", "keyed", "kneel", "kiosk",
+    "labor", "large", "level", "logic", "lunch", "layer", "legal", "limit", "laser", "lemon",
+    "magic", "mount", "music", "might", "metal", "minor", "model", "moral", "movie", "meant",
+    "naked", "noise", "north", "novel", "night", "nerve", "nasty", "nurse", "notch", "never",
+    "ocean", "order", "offer", "outer", "ounce", "opera", "onion", "owner", "oxide", "orbit",
+    "peace", "party", "plate", "pound", "power", "place", "panel", "prize", "plume", "press",
+    "queen", "quiet", "query", "quote", "quart", "quick", "quant", "quest", "quota", "quite",
+    "radio", "range", "route", "ratio", "ready", "right", "river", "robin", "round", "rebel",
+    "sugar", "start", "smoke", "south", "scale", "scope", "share", "space", "smart", "study",
+    "table", "title", "total", "train", "trust", "taste", "tower", "track", "trunk", "trial",
+    "umbra", "usage", "union", "urban", "ultra", "under", "unity", "usual", "until", "upper",
+    "vague", "vital", "visit", "voice", "value", "video", "valid", "virus", "vault", "venue",
+    "worry", "world", "watch", "water", "white", "woman", "wrong", "wheel", "whale", "wheat",
+    "xenon", "xerox", "xylophone", "xylol", "xenium", "xanthic", "xystus", "xenial", "xenics", "xerxes",
+    "yield", "young", "youth", "yogurt", "yellow", "yarns", "yearn", "yeast", "yells", "yonder",
+    "zebra", "zesty", "zonal", "zeros", "zones", "zippy", "zincs", "zonal", "zowie", "zounds"
+]
+
+
+;
+        let targetWord;
+        let currentRow = 0;
+        const WORD_LENGTH = 5;
+        const MAX_ATTEMPTS = 6;
+
+// Открытие модального окна выбора раскладки
+function openLayoutModal() {
+    const layoutModal = document.getElementById('layoutModal');
+    layoutModal.classList.add('active');
+}
+
+// Закрытие модального окна выбора раскладки
+function closeLayoutModal() {
+    const layoutModal = document.getElementById('layoutModal');
+    layoutModal.classList.remove('active');
+}
+
+// Обработка выбора раскладки
+function selectLayout(layout) {
+    alert(`CHOSE KEYBOARD: ${layout}`);
+    closeLayoutModal();
+}
+
+
+
+
+// Функция для добавления буквы в поле ввода
+function typeLetter(letter) {
+    const input = document.getElementById('guessInput');
+    if (input.value.length < 5) { // Ограничиваем длину слова до 5 букв
+        input.value += letter;
+        setupInput(); // Обновляем отображение букв в сетке
+    }
+}
+
+// Функция для удаления последней буквы
+function deleteLetter() {
+    const input = document.getElementById('guessInput');
+    input.value = input.value.slice(0, -1); // Удаляем последний символ
+    setupInput(); // Обновляем отображение букв в сетке
+}
+
+// Функция для переключения между режимами (ввод/клавиатура)
+let isKeyboardVisible = false; // Флаг для отслеживания видимости клавиатуры
+
+function toggleKeyboard() {
+    const inputContainer = document.querySelector('.input-container');
+    const virtualKeyboard = document.getElementById('virtualKeyboard');
+    const currentKeyboardMode = document.getElementById('currentKeyboardMode');
+
+    if (isKeyboardVisible) {
+        // Если клавиатура видна, скрываем её и показываем стандартный ввод
+        virtualKeyboard.style.display = 'none';
+        inputContainer.style.display = 'flex';
+        currentKeyboardMode.textContent = 'HANDLE'; // Обновляем текст
+    } else {
+        // Если клавиатура скрыта, показываем её и скрываем стандартный ввод
+        virtualKeyboard.style.display = 'block';
+        inputContainer.style.display = 'none';
+        currentKeyboardMode.textContent = 'BUILT-IN'; // Обновляем текст
+    }
+
+    isKeyboardVisible = !isKeyboardVisible; // Переключаем флаг
+}
+
+
+
+
+// ОСТАВЬТЕ ТОЛЬКО ЭТУ:
+function handleSetting(option) {
+    if (option === 'keyboard') {
+        openLayoutModal(); // Открываем окно выбора раскладки
+    } else {
+        alert(`Выбрано: ${option}`);
+    }
+}
+
+        function initGame() {
+            targetWord = words[Math.floor(Math.random() * words.length)];
+            createGrid();
+            setupInput();
+        }
+
+        function createGrid() {
+            const grid = document.getElementById('grid');
+            grid.innerHTML = '';
+            for (let i = 0; i < MAX_ATTEMPTS; i++) {
+                for (let j = 0; j < WORD_LENGTH; j++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    grid.appendChild(cell);
+                }
+            }
+        }
+
+        const motivationMessages = [
+            "АЙ НА КОНДИЦИЯХ!!!",
+            "ЧИСТО МИШАНЯ!!!",
+            "ЭЙ ЙОООУ!!!",
+            "НУ ЛЕВ!!!",
+            "КАКАЯ ЖЕ ТЫ МАШИНА!!!",
+            "АБАЮДНО!!!",
+            "МИША, КАК ТЕБЕ ТУЛЬСКИЙ ПРЯНИК?",
+            "ЛЮТЕЙШИЙ!!!"
+        ];
+
+        function setupInput() {
+            const input = document.getElementById('guessInput');
+            input.value = '';
+            input.disabled = false;
+            input.focus();
+
+            let messageIndex = 0;
+
+            input.addEventListener('input', function (e) {
+                const value = e.target.value.toUpperCase();
+                e.target.value = value;
+
+                const cells = document.getElementsByClassName('cell');
+                const startIndex = currentRow * WORD_LENGTH;
+
+                for (let i = 0; i < WORD_LENGTH; i++) {
+                    const cell = cells[startIndex + i];
+                    cell.textContent = value[i] || '';
+                    cell.classList.toggle('visible', !!value[i]);
+                }
+
+                const motivationMessageElement = document.getElementById('motivationMessage');
+                motivationMessageElement.textContent = motivationMessages[messageIndex % motivationMessages.length];
+                messageIndex++;
+            });
+        }
+
+        function checkGuess() {
+            const guess = document.getElementById('guessInput').value.toLowerCase();
+            if (guess.length !== 5) return;
+
+            const cells = document.getElementsByClassName('cell');
+            const targetLetters = targetWord.split('');
+
+            for (let i = 0; i < WORD_LENGTH; i++) {
+                const cellIndex = currentRow * WORD_LENGTH + i;
+                const letter = guess[i];
+                const cell = cells[cellIndex];
+
+                setTimeout(() => {
+                    if (letter === targetLetters[i]) {
+                        cell.style.backgroundColor = '#a3f7b3';
+                        cell.style.color = '#0ea02a';
+                        cell.style.borderColor = '#13d438';
+                    } else if (targetWord.includes(letter)) {
+                        cell.style.backgroundColor = '#f5faa0';
+                        cell.style.color = '#ecc309';
+                        cell.style.borderColor = '#ecc309';
+                    } else {
+                        cell.style.backgroundColor = '#d7d7d9';
+                        cell.style.color = '#8e8e94';
+                        cell.style.borderColor = '#8e8e94';
+                    }
+
+                    cell.style.opacity = '0';
+                    setTimeout(() => {
+                        cell.style.opacity = '1';
+                    }, 50);
+                }, i * 200);
+            }
+
+            if (guess === targetWord) {
+                setTimeout(() => alert('Победа!'), 600);
+                document.getElementById('guessInput').disabled = true;
+                return;
+            }
+
+            currentRow++;
+            if (currentRow === MAX_ATTEMPTS) {
+                setTimeout(() => alert(`Игра окончена! Слово: ${targetWord}`), 600);
+                document.getElementById('guessInput').disabled = true;
+            } else {
+                setupInput();
+            }
+        }
+
+        function newRound() {
+            currentRow = 0;
+            initGame();
+            document.querySelectorAll('.cell').forEach(cell => {
+                cell.style.backgroundColor = '#f9ae9b';
+            });
+        }
+
+        // Открытие меню настроек
+        function openSettings() {
+            const settingsModal = document.getElementById('settingsModal');
+            settingsModal.classList.add('active'); // Активируем анимацию выезда
+        }
+
+        // Закрытие меню настроек
+        function closeSettings() {
+            const settingsModal = document.getElementById('settingsModal');
+            settingsModal.classList.remove('active'); // Отключаем анимацию выезда
+        }
+
+        // Обработка действий в настройках
+        function handleSetting(option) {
+            alert(`Выбрано: ${option}`);
+        }
+
+        initGame();
+    </script>
+</body>
+</html>
